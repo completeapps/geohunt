@@ -1,1009 +1,854 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GeoHunt - Cache Finder</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Phosphor Icons for modern minimalist icons -->
-  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>GeoHunt Explorer</title>
   <style>
-    /* Custom Scrollbar for sleek UI */
-    ::-webkit-scrollbar {
-      width: 6px;
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
     }
-    ::-webkit-scrollbar-track {
-      background: #0f172a;
+
+    body {
+      background-color: #1a1a1a;
+      color: #ffffff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      width: 100vw;
     }
-    ::-webkit-scrollbar-thumb {
-      background: #334155;
-      border-radius: 3px;
+
+    #game-container {
+      position: relative;
+      width: 100%;
+      max-width: 1280px;
+      height: 100%;
+      max-height: 720px;
+      background: #000;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+      overflow: hidden;
     }
+
     canvas {
-      touch-action: none;
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Top HUD Overlay */
+    #hud {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      right: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .hud-card {
+      background: rgba(20, 20, 20, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(8px);
+      padding: 10px 16px;
+      border-radius: 12px;
+      color: #e0e0e0;
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      pointer-events: auto;
+    }
+
+    .hud-title {
+      color: #4CAF50;
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+
+    /* Buttons */
+    .btn {
+      background: #2e7d32;
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn:hover {
+      background: #388e3c;
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn-secondary {
+      background: #424242;
+    }
+
+    .btn-secondary:hover {
+      background: #616161;
+    }
+
+    /* GPS Unit UI Component */
+    #gps-display {
+      background: #0d1b0e;
+      border: 2px solid #2e7d32;
+      color: #4CAF50;
+      font-family: 'Courier New', Courier, monospace;
+      padding: 6px 12px;
+      border-radius: 8px;
+      box-shadow: inset 0 0 8px rgba(76, 175, 80, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .signal-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #4CAF50;
+      box-shadow: 0 0 8px #4CAF50;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.3; }
+      50% { opacity: 1; }
+      100% { opacity: 0.3; }
+    }
+
+    /* Action Hotbar */
+    #action-bar {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 10;
+    }
+
+    /* Modals & Overlays */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(5px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-box {
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 500px;
+      max-height: 85%;
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+    }
+
+    /* Notebook Style Modal */
+    .notebook-style {
+      background: #fbf5e5;
+      color: #2c251e;
+      border: 2px solid #8c6d46;
+      box-shadow: inset 0 0 20px rgba(140, 109, 70, 0.2);
+      font-family: 'Georgia', serif;
+    }
+
+    .notebook-header {
+      border-bottom: 2px dashed #8c6d46;
+      padding-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .notebook-title {
+      font-size: 20px;
+      font-weight: bold;
+      color: #5c4028;
+    }
+
+    .cache-list-item {
+      background: rgba(140, 109, 70, 0.1);
+      border: 1px solid rgba(140, 109, 70, 0.3);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .cache-info h4 {
+      margin-bottom: 4px;
+      color: #3b2818;
+    }
+
+    .cache-info p {
+      font-size: 12px;
+      color: #6e553c;
+    }
+
+    /* Logbook Form */
+    .logbook-input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+      margin-top: 6px;
+      outline: none;
+    }
+
+    .logbook-signatures {
+      max-height: 150px;
+      overflow-y: auto;
+      border: 1px inset #ddd;
+      padding: 8px;
+      background: #fff;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .sig-entry {
+      padding: 4px 0;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      word-break: break-all;
+    }
+
+    /* Mobile Controls Overlay */
+    #mobile-controls {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      right: 20px;
+      top: 20px;
+      pointer-events: none;
+      z-index: 20;
+      display: none; /* Auto-enabled on touch/mobile width */
+    }
+
+    .dpad {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      width: 140px;
+      height: 140px;
+      pointer-events: auto;
+    }
+
+    .dpad-btn {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      background: rgba(255, 255, 255, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 10px;
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 18px;
+      touch-action: manipulation;
+    }
+
+    .dpad-btn:active {
+      background: rgba(76, 175, 80, 0.6);
+    }
+
+    .dpad-up { top: 0; left: 48px; }
+    .dpad-down { bottom: 0; left: 48px; }
+    .dpad-left { top: 48px; left: 0; }
+    .dpad-right { top: 48px; right: 0; }
+
+    .action-touch-btn {
+      position: absolute;
+      bottom: 20px;
+      right: 10px;
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background: rgba(76, 175, 80, 0.5);
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      backdrop-filter: blur(4px);
+      color: white;
+      font-size: 14px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+      touch-action: manipulation;
+    }
+
+    .action-touch-btn:active {
+      background: rgba(76, 175, 80, 0.8);
+      transform: scale(0.95);
+    }
+
+    /* Legal / Safety Disclaimer Footer */
+    #legal-disclaimer {
+      position: absolute;
+      bottom: 2px;
+      width: 100%;
+      text-align: center;
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.4);
+      pointer-events: none;
+      z-index: 5;
     }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col justify-between overflow-x-hidden select-none">
+<body>
 
-  <!-- Header / Navigation -->
-  <header class="bg-slate-900/80 backdrop-blur border-b border-slate-800 p-4 sticky top-0 z-20 flex flex-wrap justify-between items-center gap-4">
-    <div class="flex items-center gap-3">
-      <div class="bg-emerald-500/20 text-emerald-400 p-2 rounded-xl border border-emerald-500/30">
-        <i class="ph-bold ph-compass text-2xl"></i>
-      </div>
-      <div>
-        <h1 class="font-bold text-xl tracking-wide text-white flex items-center gap-2">
-          GeoHunt <span class="text-xs font-normal px-2 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">v1.0</span>
-        </h1>
-        <p class="text-xs text-slate-400">GPS & Cache Discovery Simulator</p>
-      </div>
-    </div>
+  <div id="game-container">
+    <canvas id="gameCanvas"></canvas>
 
-    <!-- HUD Stats & Controls -->
-    <div class="flex items-center gap-4 flex-wrap">
-      <!-- High/Low Performance Toggle -->
-      <button id="gfx-toggle-btn" onclick="toggleGraphicsMode()" class="flex items-center gap-2 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-lg border border-slate-700 transition">
-        <i id="gfx-icon" class="ph-bold ph-lightning text-yellow-400"></i>
-        <span id="gfx-label">Graphics: High</span>
-      </button>
-
-      <!-- Score & Caches -->
-      <div class="flex gap-3 text-sm bg-slate-950/60 px-3 py-1.5 rounded-lg border border-slate-800">
-        <div class="flex items-center gap-1.5 text-emerald-400">
-          <i class="ph-fill ph-trophy"></i>
-          <span id="score-val" class="font-bold">0</span> pts
-        </div>
-        <div class="w-px bg-slate-800"></div>
-        <div class="flex items-center gap-1.5 text-amber-400">
-          <i class="ph-fill ph-package"></i>
-          <span id="found-val" class="font-bold">0</span>/5
-        </div>
+    <!-- Top HUD -->
+    <div id="hud">
+      <div class="hud-card">
+        <span class="hud-title">GeoHunt</span>
+        <span id="caches-found-text">Found: 0 / 5</span>
       </div>
 
-      <!-- Legal Info Trigger -->
-      <button onclick="openModal('legal-modal')" class="text-slate-400 hover:text-white p-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 transition" title="Legal & Trademark Info">
-        <i class="ph-bold ph-info text-lg"></i>
-      </button>
-    </div>
-  </header>
-
-  <!-- Main Game Container -->
-  <main class="flex-1 max-w-6xl w-full mx-auto p-4 flex flex-col lg:flex-row gap-4 items-start">
-
-    <!-- Canvas Game Viewport -->
-    <div class="relative w-full lg:w-3/4 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col items-center justify-center min-h-[420px]">
-      
-      <canvas id="gameCanvas" class="w-full h-full block bg-emerald-950/30 cursor-crosshair"></canvas>
-
-      <!-- Radar HUD Overlay -->
-      <div id="gps-hud" class="absolute top-4 left-4 bg-slate-950/80 backdrop-blur border border-slate-800 rounded-xl p-3 flex items-center gap-3 shadow-lg transition-all duration-300">
-        <div id="radar-light" class="w-4 h-4 rounded-full bg-blue-500 animate-pulse border border-blue-400/50"></div>
+      <!-- GPS Inventory Item Display -->
+      <div id="gps-display" style="display: flex;">
+        <div class="signal-indicator"></div>
         <div>
-          <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Signal Radar</div>
-          <div id="radar-status" class="text-sm font-extrabold text-blue-400">SEARCHING...</div>
-          <div id="waypoint-hud" class="text-[11px] text-emerald-400 font-mono hidden">Target: None</div>
+          <div style="font-size: 9px; opacity: 0.8;">GPS NAVIGATION</div>
+          <div id="gps-status-text">SIGNAL: ACTIVE</div>
         </div>
       </div>
 
-      <!-- Distance Signal Gauge -->
-      <div id="proximity-hud" class="absolute top-4 right-4 bg-slate-950/80 backdrop-blur border border-slate-800 rounded-xl px-3 py-2 text-right shadow-lg transition-all duration-300">
-        <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Proximity Meter</div>
-        <div class="w-28 bg-slate-800 h-2.5 rounded-full overflow-hidden mt-1 border border-slate-700">
-          <div id="proximity-bar" class="bg-blue-500 h-full w-0 transition-all duration-300"></div>
+      <div class="hud-card">
+        <button class="btn btn-secondary" id="graphics-toggle-btn">Graphics: High</button>
+      </div>
+    </div>
+
+    <!-- Action Hotbar -->
+    <div id="action-bar">
+      <button class="btn" id="notebook-btn">📖 Open Notebook</button>
+      <button class="btn btn-secondary" id="gps-toggle-btn">📡 Toggle GPS</button>
+    </div>
+
+    <!-- Mobile Touch Controls -->
+    <div id="mobile-controls">
+      <div class="dpad">
+        <div class="dpad-btn dpad-up" id="btn-up">▲</div>
+        <div class="dpad-btn dpad-down" id="btn-down">▼</div>
+        <div class="dpad-btn dpad-left" id="btn-left">◄</div>
+        <div class="dpad-btn dpad-right" id="btn-right">►</div>
+      </div>
+      <div class="action-touch-btn" id="btn-interact">SEARCH</div>
+    </div>
+
+    <!-- Trademark Safety Disclaimer -->
+    <div id="legal-disclaimer">
+      This game is an independent work and is not affiliated with, endorsed by, or associated with Geocaching / Groundspeak Inc.
+    </div>
+
+    <!-- Notebook Modal -->
+    <div class="modal-overlay" id="notebook-modal">
+      <div class="modal-box notebook-style">
+        <div class="notebook-header">
+          <span class="notebook-title">Explorer Notebook</span>
+          <button class="btn btn-secondary" id="close-notebook-btn">✖ Close</button>
         </div>
-      </div>
-
-      <!-- Interaction Alert Notification -->
-      <div id="cache-prompt" class="hidden absolute bottom-16 bg-amber-500 text-slate-950 font-bold px-5 py-2.5 rounded-full shadow-2xl border border-amber-300 animate-bounce flex items-center gap-2 cursor-pointer" onclick="interactCache()">
-        <i class="ph-bold ph-hand-tapping text-xl"></i>
-        <span>Press [E] or Tap Here to Open Cache!</span>
-      </div>
-
-      <!-- Inventory Bar (Bottom Overlay) -->
-      <div class="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-950/90 backdrop-blur border border-slate-800 rounded-2xl p-2 flex items-center gap-2 shadow-2xl z-10">
-        <!-- GPS Inventory Slot -->
-        <button id="gps-slot" onclick="toggleGPSPower()" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-bold transition hover:bg-emerald-500/30">
-          <i id="gps-slot-icon" class="ph-bold ph-broadcast text-base"></i>
-          <span>GPS Device: ON</span>
-        </button>
-
-        <div class="w-px h-6 bg-slate-800"></div>
-
-        <!-- Notebook Inventory Slot -->
-        <button onclick="openNotebook()" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold transition">
-          <i class="ph-bold ph-notebook text-amber-400 text-base"></i>
-          <span>Field Notebook [N]</span>
-        </button>
-      </div>
-
-      <!-- On-screen Touch Controls for Mobile/Tablet -->
-      <div class="md:hidden absolute bottom-4 left-4 grid grid-cols-3 gap-1 w-28 h-28 opacity-70 hover:opacity-100 transition z-0">
-      <!-- How to play card -->
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <h2 class="font-bold text-slate-200 mb-2 flex items-center gap-2 text-sm">
-          <i class="ph-bold ph-game-controller text-emerald-400"></i> Game Controls
-        </h2>
-        <ul class="text-xs text-slate-400 space-y-1.5">
-          <li class="flex justify-between"><span class="text-slate-300 font-semibold">Move:</span> <span>WASD / Arrow Keys</span></li>
-          <li class="flex justify-between"><span class="text-slate-300 font-semibold">Interact:</span> <span>E / Click Prompt</span></li>
-          <li class="flex justify-between"><span class="text-slate-300 font-semibold">Field Notebook:</span> <span>Press N</span></li>
-          <li class="flex justify-between"><span class="text-slate-300 font-semibold">Graphics Toggle:</span> <span>Top Header Switch</span></li>
-        </ul>
-      </div>
-
-      <!-- Found Caches Inventory -->
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex-1 flex flex-col">
-        <h2 class="font-bold text-slate-200 mb-3 flex items-center justify-between text-sm">
-          <span class="flex items-center gap-2">
-            <i class="ph-bold ph-notebook text-amber-400"></i> Discovered Logs
-          </span>
-          <span id="log-count" class="text-xs text-slate-500">0 Items</span>
-        </h2>
-
-        <div id="log-list" class="flex-1 space-y-2 max-h-64 overflow-y-auto pr-1 text-xs text-slate-400">
-          <div id="empty-log-msg" class="p-4 text-center border border-dashed border-slate-800 rounded-xl text-slate-500">
-            No caches discovered yet. Follow the radar signals or check your Field Notebook!
-          </div>
+        <p style="font-size: 13px; font-style: italic;">Select a cache waypoint to direct your GPS compass toward it.</p>
+        <div id="notebook-cache-list">
+          <!-- Dynamic Cache List Entries -->
         </div>
       </div>
     </div>
-  </main>
 
-  <!-- Footer -->
-  <footer class="bg-slate-900/50 border-t border-slate-800/80 py-3 text-center text-xs text-slate-500">
-    Designed for high performance and beginner-friendly customization. Built with vanilla Canvas & HTML5.
-  </footer>
+    <!-- Logbook Modal -->
+    <div class="modal-overlay" id="logbook-modal">
+      <div class="modal-box notebook-style">
+        <div class="notebook-header">
+          <span class="notebook-title" id="logbook-cache-title">Cache Found!</span>
+          <button class="btn btn-secondary" id="close-logbook-btn">✖ Close Without Signing</button>
+        </div>
+        <p id="logbook-cache-desc" style="font-size: 13px;"></p>
+        
+        <div>
+          <label style="font-size: 12px; font-weight: bold; color: #5c4028;">Sign Logbook:</label>
+          <input type="text" id="player-name-input" class="logbook-input" placeholder="Enter your callsign / handle..." maxlength="40">
+        </div>
 
-  <!-- Modal: Field Notebook UI -->
-  <div id="notebook-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative flex flex-col max-h-[85vh]">
-      <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
-        <div class="flex items-center gap-3">
-          <div class="p-2.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl">
-            <i class="ph-bold ph-notebook text-2xl"></i>
-          </div>
-          <div>
-            <h3 class="font-bold text-lg text-white">Explorer Field Notebook</h3>
-            <p class="text-xs text-slate-400">Cache Directory & Waypoint Navigator</p>
+        <div>
+          <label style="font-size: 12px; font-weight: bold; color: #5c4028; display: block; margin-bottom: 4px;">Past Visitors:</label>
+          <div class="logbook-signatures" id="logbook-signatures-list">
+            <!-- Dynamic Past Signatures -->
           </div>
         </div>
-        <button onclick="closeModal('notebook-modal')" class="text-slate-400 hover:text-white p-2 text-xl">
-          <i class="ph-bold ph-x"></i>
-        </button>
-      </div>
 
-      <div id="notebook-cache-list" class="flex-1 overflow-y-auto space-y-3 pr-2 my-2">
-        <!-- Dynamically rendered via JS -->
-      </div>
-
-      <div class="flex justify-between items-center pt-3 border-t border-slate-800">
-        <button onclick="clearWaypoint()" class="text-xs text-rose-400 hover:text-rose-300 font-semibold flex items-center gap-1">
-          <i class="ph-bold ph-x-circle"></i> Clear Navigation Waypoint
-        </button>
-        <button onclick="closeModal('notebook-modal')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-4 py-2 rounded-xl border border-slate-700">
-          Close Notebook
-        </button>
+        <button class="btn" id="sign-logbook-btn" style="width: 100%; justify-content: center;">✍️ Sign Logbook & Claim Cache</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal: Cache Discovery Logbook -->
-  <div id="cache-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in duration-200">
-      <div class="flex items-start justify-between mb-4">
-        <div class="flex items-center gap-3">
-          <div class="p-3 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl">
-            <i class="ph-fill ph-treasure-chest text-2xl"></i>
-          </div>
-          <div>
-            <h3 id="cache-title" class="font-bold text-lg text-white break-words max-w-[220px]">Treasure Cache Found!</h3>
-            <p id="cache-coords" class="text-xs text-slate-400 font-mono">Coordinates: N 34° 02.112 W 118° 14.500</p>
-          </div>
-        </div>
-        <button onclick="closeModal('cache-modal')" class="text-slate-400 hover:text-white p-1 text-lg" title="Close without signing">
-          <i class="ph-bold ph-x"></i>
-        </button>
-      </div>
-
-      <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 mb-4 text-xs text-slate-300">
-        <span class="text-slate-500 block mb-1 font-semibold">Cache Container Description:</span>
-        <p id="cache-desc" class="break-words">A small weatherproof container tucked neatly under brush.</p>
-      </div>
-
-      <div class="mb-4">
-        <label class="block text-xs font-semibold text-slate-300 mb-1">Sign the Logbook:</label>
-        <textarea id="log-note" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500" placeholder="Write your hunter nickname or a note..."></textarea>
-      </div>
-
-      <div class="flex justify-between items-center gap-2">
-        <button onclick="closeModal('cache-modal')" class="text-slate-400 hover:text-slate-200 text-xs px-3 py-2 rounded-xl transition">
-          Close without signing
-        </button>
-        <button onclick="claimCache()" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl transition">
-          Sign & Collect (+100 pts)
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: Legal Safety & Trademark Info -->
-  <div id="legal-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="font-bold text-base text-white flex items-center gap-2">
-          <i class="ph-bold ph-shield-check text-emerald-400 text-xl"></i> Trademark & Legal Safety Guide
-        </h3>
-        <button onclick="closeModal('legal-modal')" class="text-slate-400 hover:text-white text-lg">
-          <i class="ph-bold ph-x"></i>
-        </button>
-      </div>
-
-      <div class="text-xs text-slate-300 space-y-3 leading-relaxed max-h-80 overflow-y-auto pr-2">
-        <p>
-          <strong class="text-amber-400">Avoid Trademarked Terms:</strong> The term <em>"Geocaching"</em> is a registered trademark owned by <strong>Groundspeak, Inc. (Geocaching HQ)</strong>. 
-        </p>
-        <p>
-          When developing real games or uploading them online, avoid using "Geocaching" or official logos in your game title or official branding to prevent copyright/trademark claims.
-        </p>
-        <p class="bg-slate-950 p-3 rounded-xl border border-slate-800">
-          <strong class="text-emerald-400 block mb-1">Safe Alternative Names:</strong>
-          • GeoHunt / GeoFind<br/>
-          • GPS Cache Quest<br/>
-          • Treasure Cache Explorer<br/>
-          • Outdoor Signal Tracker
-        </p>
-        <p>
-          <em>Note:</em> The core gameplay mechanics of real-world outdoor location searching and signal tracking are generic concepts and completely legal to use in software development!
-        </p>
-      </div>
-
-      <div class="mt-5 text-right">
-        <button onclick="closeModal('legal-modal')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-4 py-2 rounded-xl border border-slate-700">
-          Got It
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- JavaScript Game Engine -->
   <script>
-    // --- ENGINE & GAME STATE ---
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
+    // --- Game Configuration & State ---
+    const CANVAS_WIDTH = 1280;
+    const CANVAS_HEIGHT = 720;
+    const MAP_SIZE = 3000;
 
-    let highGfx = true; // Toggle state for performance vs ultra visuals
-    let gpsPower = true; // State for portable GPS item
-    let selectedWaypointId = null; // Target cache ID for navigation
-
-    let score = 0;
-    let foundCount = 0;
-    const totalCaches = 5;
-
-    // Time & Animation counters
-    let animTime = 0;
-    const sunAngle = { x: 0.6, y: 0.8 }; // Directional light source vector
-
-    // Player State
-    const player = {
-      x: 400,
-      y: 300,
-      radius: 12,
-      speed: 3,
-      trail: [],
-      walkCycle: 0,
-      isMoving: false
+    const state = {
+      highGraphics: true,
+      gpsActive: true,
+      activeWaypointIndex: 0,
+      cachesFound: 0,
+      activeModal: null,
+      activeCacheNear: null,
+      keys: {},
+      touchDirs: { up: false, down: false, left: false, right: false }
     };
 
-    // Keyboard state
-    const keys = {};
+    // Camera setup
+    const camera = { x: 0, y: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT };
 
-    // Procedural Caches List
-    let caches = [];
-    let currentNearbyCache = null;
+    // Player setup
+    const player = {
+      x: MAP_SIZE / 2,
+      y: MAP_SIZE / 2,
+      radius: 16,
+      speed: 4.5,
+      angle: 0
+    };
 
-    // Environmental Props, Particles & Ambient Wildlife
-    let environmentProps = [];
-    let particles = [];
-    let birds = [];
-    let cloudShadows = [];
+    // Procedural Caches
+    const caches = [
+      { id: 1, name: "Mossy Boulder Cache", hint: "Hidden under a large rock formation near the northern woods.", x: 1200, y: 1100, found: false, signatures: ["TrailBlazer_99", "PineSeeker"] },
+      { id: 2, name: "Old Hollow Tree Micro", hint: "Tucked inside the hollow trunk of an ancient oak.", x: 2200, y: 800, found: false, signatures: ["ForestRambler", "GeoGeo_X"] },
+      { id: 3, name: "River Bank Container", hint: "Look along the southern gravel embankment.", x: 800, y: 2300, found: false, signatures: ["MuddyBoots", "WanderLust"] },
+      { id: 4, name: "Overlook Lock-Box", hint: "High elevation near the eastern cliff edges.", x: 2500, y: 2200, found: false, signatures: ["PeakFinder"] },
+      { id: 5, name: "Pine Grove Cache", hint: "Nestled beneath heavy pine needle coverage.", x: 1500, y: 2600, found: false, signatures: ["CompassKid"] }
+    ];
 
-    // --- INITIALIZATION ---
-    function init() {
-      resizeCanvas();
-      window.addEventListener('resize', resizeCanvas);
+    // Environment Decor Elements (Trees, Rocks)
+    const environment = [];
+    function generateEnvironment() {
+      // Seeded-style random scenery generation
+      for (let i = 0; i < 200; i++) {
+        environment.push({
+          type: 'tree',
+          x: Math.random() * MAP_SIZE,
+          y: Math.random() * MAP_SIZE,
+          size: 25 + Math.random() * 20
+        });
+      }
+      for (let i = 0; i < 100; i++) {
+        environment.push({
+          type: 'rock',
+          x: Math.random() * MAP_SIZE,
+          y: Math.random() * MAP_SIZE,
+          size: 12 + Math.random() * 14
+        });
+      }
+    }
+    generateEnvironment();
 
-      // Event listeners for movement & shortcuts
-      window.addEventListener('keydown', (e) => { 
-        keys[e.key.toLowerCase()] = true; 
-        keys[e.code] = true; 
-        if (e.key.toLowerCase() === 'n') toggleNotebookModal();
+    // Ultra Graphics Assets: Ambient Life (Birds, Pollen)
+    const birds = Array.from({ length: 8 }, () => ({
+      x: Math.random() * MAP_SIZE,
+      y: Math.random() * MAP_SIZE,
+      speed: 2 + Math.random() * 2,
+      angle: Math.random() * Math.PI * 2,
+      wingCycle: Math.random() * Math.PI
+    }));
+
+    const pollenParticles = Array.from({ length: 60 }, () => ({
+      x: Math.random() * MAP_SIZE,
+      y: Math.random() * MAP_SIZE,
+      size: 1 + Math.random() * 2,
+      alpha: 0.2 + Math.random() * 0.5,
+      driftSpeed: 0.3 + Math.random() * 0.5
+    }));
+
+    // Setup Canvas
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = CANVAS_WIDTH;
+    canvas.height = CANVAS_HEIGHT;
+
+    // Detect Touch Capability
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth < 800) {
+      document.getElementById('mobile-controls').style.display = 'block';
+    }
+
+    // --- Input Handling ---
+    window.addEventListener('keydown', (e) => {
+      state.keys[e.key.toLowerCase()] = true;
+      if (e.key === 'e' || e.key === 'E' || e.key === ' ') {
+        checkCacheInteraction();
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      state.keys[e.key.toLowerCase()] = false;
+    });
+
+    // Touch D-Pad Controls
+    function bindTouchBtn(elementId, dirKey) {
+      const btn = document.getElementById(elementId);
+      btn.addEventListener('touchstart', (e) => { e.preventDefault(); state.touchDirs[dirKey] = true; });
+      btn.addEventListener('touchend', (e) => { e.preventDefault(); state.touchDirs[dirKey] = false; });
+      btn.addEventListener('mousedown', () => { state.touchDirs[dirKey] = true; });
+      btn.addEventListener('mouseup', () => { state.touchDirs[dirKey] = false; });
+    }
+
+    bindTouchBtn('btn-up', 'up');
+    bindTouchBtn('btn-down', 'down');
+    bindTouchBtn('btn-left', 'left');
+    bindTouchBtn('btn-right', 'right');
+
+    document.getElementById('btn-interact').addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      checkCacheInteraction();
+    });
+    document.getElementById('btn-interact').addEventListener('click', () => {
+      checkCacheInteraction();
+    });
+
+    // UI Buttons & Modals
+    const graphicsBtn = document.getElementById('graphics-toggle-btn');
+    graphicsBtn.addEventListener('click', () => {
+      state.highGraphics = !state.highGraphics;
+      graphicsBtn.textContent = `Graphics: ${state.highGraphics ? 'High' : 'Low'}`;
+    });
+
+    const gpsToggleBtn = document.getElementById('gps-toggle-btn');
+    const gpsDisplay = document.getElementById('gps-display');
+    gpsToggleBtn.addEventListener('click', () => {
+      state.gpsActive = !state.gpsActive;
+      gpsDisplay.style.display = state.gpsActive ? 'flex' : 'none';
+    });
+
+    const notebookBtn = document.getElementById('notebook-btn');
+    const notebookModal = document.getElementById('notebook-modal');
+    const closeNotebookBtn = document.getElementById('close-notebook-btn');
+
+    notebookBtn.addEventListener('click', () => openModal('notebook-modal'));
+    closeNotebookBtn.addEventListener('click', () => closeModal('notebook-modal'));
+
+    const logbookModal = document.getElementById('logbook-modal');
+    const closeLogbookBtn = document.getElementById('close-logbook-btn');
+    closeLogbookBtn.addEventListener('click', () => closeModal('logbook-modal'));
+
+    function openModal(id) {
+      document.getElementById(id).classList.add('active');
+      state.activeModal = id;
+      if (id === 'notebook-modal') renderNotebookList();
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+      state.activeModal = null;
+    }
+
+    // --- Notebook Logic ---
+    function renderNotebookList() {
+      const listContainer = document.getElementById('notebook-cache-list');
+      listContainer.innerHTML = '';
+
+      caches.forEach((c, idx) => {
+        const item = document.createElement('div');
+        item.className = 'cache-list-item';
+        item.innerHTML = `
+          <div class="cache-info">
+            <h4>${c.found ? '✅' : '📌'} ${c.name}</h4>
+            <p><strong>Hint:</strong> ${c.hint}</p>
+            <p><strong>Status:</strong> ${c.found ? 'Logged & Completed' : 'Unfound'}</p>
+          </div>
+          <div>
+            ${state.activeWaypointIndex === idx ? 
+              `<button class="btn btn-secondary" disabled>Tracking</button>` : 
+              `<button class="btn" onclick="setWaypoint(${idx})">Set Waypoint</button>`}
+          </div>
+        `;
+        listContainer.appendChild(item);
       });
-      window.addEventListener('keyup', (e) => { 
-        keys[e.key.toLowerCase()] = false; 
-        keys[e.code] = false; 
-      });
-
-      generateMap();
-      spawnAtmospherics();
-      requestAnimationFrame(gameLoop);
     }
 
-    function resizeCanvas() {
-      const container = canvas.parentElement;
-      canvas.width = container.clientWidth;
-      canvas.height = container.clientHeight || 450;
-    }
+    window.setWaypoint = function(idx) {
+      state.activeWaypointIndex = idx;
+      renderNotebookList();
+      closeModal('notebook-modal');
+    };
 
-    function setKey(code, state) {
-      keys[code.toLowerCase()] = state;
-      keys[code] = state;
-    }
+    // --- Cache Interaction & Logbook Signing ---
+    function checkCacheInteraction() {
+      if (state.activeModal) return;
 
-    // --- MAP & ATMOSPHERICS GENERATION ---
-    function generateMap() {
-      // Spawn player in center
-      player.x = canvas.width / 2;
-      player.y = canvas.height / 2;
+      const targetCache = caches[state.activeWaypointIndex];
+      const dist = Math.hypot(player.x - targetCache.x, player.y - targetCache.y);
 
-      caches = [];
-      environmentProps = [];
-
-      // Generate 5 random hidden caches with hints and difficulties
-      const names = ["Old Pine Container", "Mossy Rock Hide", "Bench Magnet Cache", "Hollow Log Vault", "Park Corner Micro"];
-      const hints = ["Look near the base of evergreen trees.", "Hidden under dark granite stone.", "Check under metallic surfaces.", "Tucked inside tree hollow.", "Near boundary wall post."];
-      const terrains = ["Terrain: Easy (1.5)", "Terrain: Moderate (2.5)", "Terrain: Urban (1.0)", "Terrain: Rugged (3.0)", "Terrain: Easy (1.0)"];
-
-      for (let i = 0; i < totalCaches; i++) {
-        caches.push({
-          id: i,
-          x: Math.random() * (canvas.width - 120) + 60,
-          y: Math.random() * (canvas.height - 120) + 60,
-          found: false,
-          name: names[i] || `Cache #${i + 1}`,
-          hint: hints[i] || "Check nearby landmarks.",
-          terrain: terrains[i] || "Terrain: Normal",
-          coords: `N ${Math.floor(Math.random()*90)}° ${Math.floor(Math.random()*60)}.${Math.floor(Math.random()*999)} W ${Math.floor(Math.random()*180)}° ${Math.floor(Math.random()*60)}.${Math.floor(Math.random()*999)}`,
-          desc: "A weatherproof container tucked neatly within the environment."
-        });
-      }
-
-      // Generate trees, rocks, dirt patches, pebbles
-      for (let i = 0; i < 22; i++) {
-        environmentProps.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          radius: 14 + Math.random() * 18,
-          type: Math.random() > 0.3 ? 'tree' : 'rock',
-          swayOffset: Math.random() * Math.PI * 2
-        });
-      }
-
-      // Ground Pebbles / Dirt Patches
-      for (let i = 0; i < 35; i++) {
-        environmentProps.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          radius: 1 + Math.random() * 3,
-          type: 'pebble'
-        });
+      if (dist < 45) {
+        openLogbook(targetCache);
+      } else {
+        // Find if near any cache
+        const nearCache = caches.find(c => Math.hypot(player.x - c.x, player.y - c.y) < 45);
+        if (nearCache) {
+          openLogbook(nearCache);
+        }
       }
     }
 
-    // ... existing atmospherics code ...
-    function spawnAtmospherics() {
-      birds = [];
-      for (let i = 0; i < 4; i++) {
-        birds.push(createBird());
-      }
+    function openLogbook(cache) {
+      state.activeCacheNear = cache;
+      document.getElementById('logbook-cache-title').textContent = cache.name;
+      document.getElementById('logbook-cache-desc').textContent = cache.hint;
 
-      cloudShadows = [];
-      for (let i = 0; i < 3; i++) {
-        cloudShadows.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          rx: 120 + Math.random() * 100,
-          ry: 70 + Math.random() * 50,
-          speed: 0.3 + Math.random() * 0.3
-        });
-      }
+      const sigList = document.getElementById('logbook-signatures-list');
+      sigList.innerHTML = cache.signatures.map(s => `<div class="sig-entry"><span>👤 ${s}</span><span>Logged</span></div>`).join('');
 
-      particles = [];
-      for (let i = 0; i < 30; i++) {
-        particles.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          size: 1 + Math.random() * 2,
-          alpha: 0.2 + Math.random() * 0.5,
-          speedX: -0.2 + Math.random() * 0.4,
-          speedY: -0.3 + Math.random() * 0.2
-        });
-      }
+      openModal('logbook-modal');
     }
 
-    function createBird() {
-      return {
-        x: -50 - Math.random() * 200,
-        y: Math.random() * (canvas.height * 0.8),
-        speed: 1.8 + Math.random() * 1.2,
-        wingPhase: Math.random() * Math.PI * 2,
-        altitude: 25 + Math.random() * 20,
-        scale: 0.7 + Math.random() * 0.5
-      };
-    }
+    document.getElementById('sign-logbook-btn').addEventListener('click', () => {
+      const nameInput = document.getElementById('player-name-input');
+      const playerName = nameInput.value.trim() || 'Anonymous Explorer';
 
-    // --- GAME LOOP ---
-    function gameLoop() {
-      animTime += 0.05;
-      update();
-      render();
-      requestAnimationFrame(gameLoop);
-    }
+      if (state.activeCacheNear) {
+        if (!state.activeCacheNear.found) {
+          state.activeCacheNear.found = true;
+          state.cachesFound++;
+          document.getElementById('caches-found-text').textContent = `Found: ${state.cachesFound} / ${caches.length}`;
+        }
+        state.activeCacheNear.signatures.push(playerName);
+      }
 
-    // --- UPDATE LOGIC ---
+      nameInput.value = '';
+      closeModal('logbook-modal');
+    });
+
+    // --- Main Game Loop & Rendering ---
     function update() {
+      if (state.activeModal) return; // Freeze movement when modal open
+
+      // Calculate directional input
       let dx = 0;
       let dy = 0;
 
-      if (keys['w'] || keys['arrowup']) dy -= 1;
-      if (keys['s'] || keys['arrowdown']) dy += 1;
-      if (keys['a'] || keys['arrowleft']) dx -= 1;
-      if (keys['d'] || keys['arrowright']) dx += 1;
+      if (state.keys['w'] || state.keys['arrowup'] || state.touchDirs.up) dy -= 1;
+      if (state.keys['s'] || state.keys['arrowdown'] || state.touchDirs.down) dy += 1;
+      if (state.keys['a'] || state.keys['arrowleft'] || state.touchDirs.left) dx -= 1;
+      if (state.keys['d'] || state.keys['arrowright'] || state.touchDirs.right) dx += 1;
 
-      player.isMoving = (dx !== 0 || dy !== 0);
-
-      if (player.isMoving) {
-        if (dx !== 0 && dy !== 0) {
-          dx *= 0.7071;
-          dy *= 0.7071;
-        }
-
-        player.x += dx * player.speed;
-        player.y += dy * player.speed;
-        player.walkCycle += 0.25;
-
-        if (highGfx && Math.random() < 0.3) {
-          particles.push({
-            x: player.x + (Math.random() * 6 - 3),
-            y: player.y + player.radius - 2,
-            size: 2 + Math.random() * 2,
-            alpha: 0.6,
-            life: 1.0,
-            type: 'dust'
-          });
-        }
+      if (dx !== 0 && dy !== 0) {
+        dx *= 0.7071;
+        dy *= 0.7071;
       }
 
-      // Map boundary checks
-      player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
-      player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+      player.x += dx * player.speed;
+      player.y += dy * player.speed;
 
-      // Player trail buffer
-      if (highGfx && player.isMoving) {
-        player.trail.push({ x: player.x, y: player.y, alpha: 0.8 });
-        if (player.trail.length > 12) player.trail.shift();
+      // Keep inside map limits
+      player.x = Math.max(player.radius, Math.min(MAP_SIZE - player.radius, player.x));
+      player.y = Math.max(player.radius, Math.min(MAP_SIZE - player.radius, player.y));
+
+      if (dx !== 0 || dy !== 0) {
+        player.angle = Math.atan2(dy, dx);
       }
-      player.trail.forEach(p => p.alpha -= 0.06);
 
-      // Atmospheric updates
-      if (highGfx) {
-        birds.forEach(bird => {
-          bird.x += bird.speed;
-          bird.y += Math.sin(bird.x * 0.01) * 0.3;
-          bird.wingPhase += 0.2;
-          if (bird.x > canvas.width + 100) Object.assign(bird, createBird());
-        });
+      // Camera follows player
+      camera.x = player.x - camera.width / 2;
+      camera.y = player.y - camera.height / 2;
 
-        cloudShadows.forEach(cloud => {
-          cloud.x += cloud.speed;
-          if (cloud.x - cloud.rx > canvas.width) {
-            cloud.x = -cloud.rx;
-            cloud.y = Math.random() * canvas.height;
+      // Update ambient life in high graphics
+      if (state.highGraphics) {
+        birds.forEach(b => {
+          b.x += Math.cos(b.angle) * b.speed;
+          b.y += Math.sin(b.angle) * b.speed;
+          b.wingCycle += 0.15;
+          if (b.x < 0 || b.x > MAP_SIZE || b.y < 0 || b.y > MAP_SIZE) {
+            b.x = Math.random() * MAP_SIZE;
+            b.y = Math.random() * MAP_SIZE;
           }
         });
 
-        particles.forEach((p, idx) => {
-          if (p.type === 'dust') {
-            p.y -= 0.2;
-            p.alpha -= 0.04;
-            if (p.alpha <= 0) particles.splice(idx, 1);
-          } else {
-            p.x += p.speedX;
-            p.y += p.speedY;
-            if (p.x < 0) p.x = canvas.width;
-            if (p.x > canvas.width) p.x = 0;
-            if (p.y < 0) p.y = canvas.height;
-            if (p.y > canvas.height) p.y = 0;
-          }
+        pollenParticles.forEach(p => {
+          p.x += p.driftSpeed;
+          if (p.x > MAP_SIZE) p.x = 0;
         });
       }
 
-      // Radar & Waypoint Updates
-      updateRadar();
-
-      // Interaction key shortcut
-      if (keys['e'] && currentNearbyCache) {
-        interactCache();
-        keys['e'] = false;
+      // Update GPS UI status
+      if (state.gpsActive) {
+        const activeCache = caches[state.activeWaypointIndex];
+        const dist = Math.round(Math.hypot(player.x - activeCache.x, player.y - activeCache.y));
+        document.getElementById('gps-status-text').textContent = `${activeCache.name.substring(0, 12)}... | ${dist}m`;
       }
     }
 
-    // --- GPS TOGGLE & RADAR LOGIC ---
-    function toggleGPSPower() {
-      gpsPower = !gpsPower;
-      const gpsHud = document.getElementById('gps-hud');
-      const proximityHud = document.getElementById('proximity-hud');
-      const gpsSlot = document.getElementById('gps-slot');
-      const gpsSlotIcon = document.getElementById('gps-slot-icon');
-
-      if (gpsPower) {
-        gpsHud.classList.remove('opacity-20', 'pointer-events-none');
-        proximityHud.classList.remove('opacity-20', 'pointer-events-none');
-        gpsSlot.className = "flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-bold transition hover:bg-emerald-500/30";
-        gpsSlot.querySelector('span').innerText = "GPS Device: ON";
-        gpsSlotIcon.className = "ph-bold ph-broadcast text-base";
-      } else {
-        gpsHud.classList.add('opacity-20', 'pointer-events-none');
-        proximityHud.classList.add('opacity-20', 'pointer-events-none');
-        gpsSlot.className = "flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-400 text-xs font-bold transition hover:bg-slate-700";
-        gpsSlot.querySelector('span').innerText = "GPS Device: OFF";
-        gpsSlotIcon.className = "ph-bold ph-power text-base";
-      }
-    }
-
-    function updateRadar() {
-      let targetCache = null;
-      let closestDist = Infinity;
-      currentNearbyCache = null;
-
-      // Check if player set a specific waypoint
-      if (selectedWaypointId !== null) {
-        targetCache = caches.find(c => c.id === selectedWaypointId);
-      }
-
-      caches.forEach(cache => {
-        const dist = Math.hypot(player.x - cache.x, player.y - cache.y);
-        if (dist < 35 && !cache.found) {
-          currentNearbyCache = cache;
-        }
-        if (!targetCache && !cache.found && dist < closestDist) {
-          closestDist = dist;
-          targetCache = cache;
-        }
-      });
-
-      if (targetCache) {
-        closestDist = Math.hypot(player.x - targetCache.x, player.y - targetCache.y);
-      }
-
-      const radarLight = document.getElementById('radar-light');
-      const radarStatus = document.getElementById('radar-status');
-      const proximityBar = document.getElementById('proximity-bar');
-      const waypointHud = document.getElementById('waypoint-hud');
-      const prompt = document.getElementById('cache-prompt');
-
-      if (selectedWaypointId !== null && targetCache) {
-        waypointHud.classList.remove('hidden');
-        waypointHud.innerText = `Nav: ${targetCache.name} (${Math.round(closestDist)}m)`;
-      } else {
-        waypointHud.classList.add('hidden');
-      }
-
-      if (!gpsPower) return; // Skip updating UI visuals if GPS device is OFF
-
-      if (closestDist === Infinity || (targetCache && targetCache.found)) {
-        radarStatus.innerText = "ALL CACHES CLEARED!";
-        radarStatus.className = "text-sm font-extrabold text-emerald-400";
-        radarLight.className = "w-4 h-4 rounded-full bg-emerald-500 border border-emerald-400/50";
-        proximityBar.style.width = "100%";
-        proximityBar.className = "bg-emerald-500 h-full transition-all duration-300";
-        prompt.classList.add('hidden');
-        return;
-      }
-
-      const maxDist = 300;
-      const proximityPct = Math.max(0, Math.min(100, (1 - closestDist / maxDist) * 100));
-      proximityBar.style.width = `${proximityPct}%`;
-
-      if (closestDist < 35) {
-        radarStatus.innerText = "CACHE FOUND!";
-        radarStatus.className = "text-sm font-extrabold text-amber-400 animate-bounce";
-        radarLight.className = "w-4 h-4 rounded-full bg-amber-400 animate-ping";
-        proximityBar.className = "bg-amber-400 h-full transition-all duration-300";
-        if (currentNearbyCache && !currentNearbyCache.found) prompt.classList.remove('hidden');
-      } else if (closestDist < 90) {
-        radarStatus.innerText = "HOT (VERY CLOSE)";
-        radarStatus.className = "text-sm font-extrabold text-rose-400";
-        radarLight.className = "w-4 h-4 rounded-full bg-rose-500 animate-pulse";
-        proximityBar.className = "bg-rose-500 h-full transition-all duration-300";
-        prompt.classList.add('hidden');
-      } else if (closestDist < 180) {
-        radarStatus.innerText = "WARM";
-        radarStatus.className = "text-sm font-extrabold text-amber-500";
-        radarLight.className = "w-4 h-4 rounded-full bg-amber-500";
-        proximityBar.className = "bg-amber-500 h-full transition-all duration-300";
-        prompt.classList.add('hidden');
-      } else {
-        radarStatus.innerText = "COLD";
-        radarStatus.className = "text-sm font-extrabold text-blue-400";
-        radarLight.className = "w-4 h-4 rounded-full bg-blue-500";
-        proximityBar.className = "bg-blue-500 h-full transition-all duration-300";
-        prompt.classList.add('hidden');
-      }
-    }
-
-    // --- FIELD NOTEBOOK DIRECTORY ---
-    function openNotebook() {
-      renderNotebookList();
-      openModal('notebook-modal');
-    }
-
-    function toggleNotebookModal() {
-      const modal = document.getElementById('notebook-modal');
-      if (modal.classList.contains('hidden')) {
-        openNotebook();
-      } else {
-        closeModal('notebook-modal');
-      }
-    }
-
-    function renderNotebookList() {
-      const container = document.getElementById('notebook-cache-list');
-      container.innerHTML = "";
-
-      caches.forEach(cache => {
-        const dist = Math.round(Math.hypot(player.x - cache.x, player.y - cache.y));
-        const isTarget = selectedWaypointId === cache.id;
-
-        const card = document.createElement('div');
-        card.className = `p-3.5 rounded-xl border ${isTarget ? 'border-amber-500/80 bg-amber-500/10' : 'border-slate-800 bg-slate-950/60'} flex flex-wrap justify-between items-center gap-3 transition`;
-
-        card.innerHTML = `
-          <div class="flex-1 min-w-[200px]">
-            <div class="flex items-center gap-2 mb-1">
-              <span class="font-bold text-sm text-white">${cache.name}</span>
-              ${cache.found 
-                ? '<span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30">Found</span>' 
-                : '<span class="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/30">Undiscovered</span>'}
-            </div>
-            <div class="text-xs text-slate-400 space-y-0.5">
-              <p><strong class="text-slate-300">Coords:</strong> <span class="font-mono text-slate-300">${cache.coords}</span></p>
-              <p><strong class="text-slate-300">Hint:</strong> <em>"${cache.hint}"</em></p>
-              <p class="text-[11px] text-slate-500">${cache.terrain} • Est. Distance: ${dist}m</p>
-            </div>
-          </div>
-          <div>
-            ${cache.found 
-              ? '<span class="text-xs text-slate-500 italic">Discovered</span>'
-              : `<button onclick="setWaypoint(${cache.id})" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${isTarget ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'}">
-                  ${isTarget ? 'Target Waypoint Active' : 'Set Waypoint'}
-                </button>`
-            }
-          </div>
-        `;
-
-        container.appendChild(card);
-      });
-    }
-
-    function setWaypoint(id) {
-      selectedWaypointId = id;
-      renderNotebookList();
-    }
-
-    function clearWaypoint() {
-      selectedWaypointId = null;
-      renderNotebookList();
-    }
-
-    // --- RENDERING ENGINE ---
     function render() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      // 1. Terrain & Base Layer
-      if (highGfx) {
-        const bgGrad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-        bgGrad.addColorStop(0, '#064e3b');
-        bgGrad.addColorStop(0.5, '#046c4e');
-        bgGrad.addColorStop(1, '#022c22');
-        ctx.fillStyle = bgGrad;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      } else {
-        ctx.fillStyle = '#065f46';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      }
+      ctx.save();
+      ctx.translate(-camera.x, -camera.y);
 
-      // Subtle Grid / Path pattern
-      ctx.strokeStyle = highGfx ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.04)';
-      ctx.lineWidth = 1;
-      const gridSize = 40;
-      for (let x = 0; x < canvas.width; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
-        ctx.stroke();
-      }
-      for (let y = 0; y < canvas.height; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
-        ctx.stroke();
-      }
+      // 1. Terrain Base
+      ctx.fillStyle = '#3a5a40';
+      ctx.fillRect(0, 0, MAP_SIZE, MAP_SIZE);
 
-      // Waypoint Navigation Beam
-      if (selectedWaypointId !== null) {
-        const wpCache = caches.find(c => c.id === selectedWaypointId);
-        if (wpCache && !wpCache.found) {
-          ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)';
-          ctx.lineWidth = 2;
-          ctx.setLineDash([6, 6]);
-          ctx.beginPath();
-          ctx.moveTo(player.x, player.y);
-          ctx.lineTo(wpCache.x, wpCache.y);
-          ctx.stroke();
-          ctx.setLineDash([]);
+      // High Graphics Grid & Dynamic Lighting
+      if (state.highGraphics) {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+        ctx.lineWidth = 1;
+        for (let x = 0; x < MAP_SIZE; x += 100) {
+          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, MAP_SIZE); ctx.stroke();
+        }
+        for (let y = 0; y < MAP_SIZE; y += 100) {
+          ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(MAP_SIZE, y); ctx.stroke();
         }
       }
 
-      // ... existing graphics rendering (cloud shadows, trees, rocks, particles, player, birds) ...
-      if (highGfx) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
-        cloudShadows.forEach(cloud => {
+      // 2. Render Environment (Rocks & Trees with Shadows in High Mode)
+      environment.forEach(e => {
+        if (state.highGraphics) {
+          // Dynamic directional shadow
+          ctx.fillStyle = 'rgba(0,0,0,0.25)';
           ctx.beginPath();
-          ctx.ellipse(cloud.x, cloud.y, cloud.rx, cloud.ry, 0.2, 0, Math.PI * 2);
+          ctx.ellipse(e.x + 10, e.y + 10, e.size, e.size * 0.6, Math.PI / 4, 0, Math.PI * 2);
           ctx.fill();
-        });
-
-        environmentProps.forEach(prop => {
-          if (prop.type === 'tree') {
-            const shadowX = prop.x + prop.radius * sunAngle.x;
-            const shadowY = prop.y + prop.radius * sunAngle.y;
-            const grad = ctx.createRadialGradient(shadowX, shadowY, 2, shadowX, shadowY, prop.radius * 1.4);
-            grad.addColorStop(0, 'rgba(0,0,0,0.45)');
-            grad.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.ellipse(shadowX, shadowY, prop.radius * 1.2, prop.radius * 0.7, 0.4, 0, Math.PI * 2);
-            ctx.fill();
-          } else if (prop.type === 'rock') {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-            ctx.beginPath();
-            ctx.ellipse(prop.x + 4, prop.y + 4, prop.radius, prop.radius * 0.6, 0.2, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        });
-      }
-
-      environmentProps.forEach(prop => {
-        if (prop.type === 'tree') {
-          let swayX = 0;
-          let swayY = 0;
-          if (highGfx) {
-            swayX = Math.sin(animTime + prop.swayOffset) * 2;
-            swayY = Math.cos(animTime * 0.8 + prop.swayOffset) * 1.5;
-          }
-
-          ctx.fillStyle = highGfx ? '#047857' : '#059669';
-          ctx.beginPath();
-          ctx.arc(prop.x + swayX, prop.y + swayY, prop.radius, 0, Math.PI * 2);
-          ctx.fill();
-
-          if (highGfx) {
-            ctx.fillStyle = '#10b981';
-            ctx.beginPath();
-            ctx.arc(prop.x + swayX - prop.radius * 0.3, prop.y + swayY - prop.radius * 0.3, prop.radius * 0.55, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
-            ctx.beginPath();
-            ctx.arc(prop.x + swayX - prop.radius * 0.4, prop.y + swayY - prop.radius * 0.4, prop.radius * 0.25, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        } else if (prop.type === 'rock') {
-          ctx.fillStyle = '#475569';
-          ctx.beginPath();
-          ctx.arc(prop.x, prop.y, prop.radius * 0.8, 0, Math.PI * 2);
-          ctx.fill();
-
-          if (highGfx) {
-            ctx.fillStyle = '#94a3b8';
-            ctx.beginPath();
-            ctx.arc(prop.x - 2, prop.y - 2, prop.radius * 0.35, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        } else if (prop.type === 'pebble' && highGfx) {
-          ctx.fillStyle = 'rgba(148, 163, 184, 0.4)';
-          ctx.fillRect(prop.x, prop.y, prop.radius, prop.radius);
         }
-      });
 
-      // Render Caches
-      caches.forEach(cache => {
-        if (cache.found) {
-          ctx.fillStyle = '#10b981';
+        if (e.type === 'rock') {
+          ctx.fillStyle = '#7f8c8d';
           ctx.beginPath();
-          ctx.arc(cache.x, cache.y, 6, 0, Math.PI * 2);
+          ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
           ctx.fill();
-          ctx.strokeStyle = '#059669';
-          ctx.lineWidth = 2;
-          ctx.stroke();
         } else {
-          const dist = Math.hypot(player.x - cache.x, player.y - cache.y);
-          if (dist < 40) {
-            if (highGfx) {
-              const pulse = Math.sin(animTime * 3) * 4;
-              const gradient = ctx.createRadialGradient(cache.x, cache.y, 2, cache.x, cache.y, 20 + pulse);
-              gradient.addColorStop(0, 'rgba(251, 191, 36, 0.9)');
-              gradient.addColorStop(1, 'rgba(251, 191, 36, 0)');
-              ctx.fillStyle = gradient;
-              ctx.beginPath();
-              ctx.arc(cache.x, cache.y, 20 + pulse, 0, Math.PI * 2);
-              ctx.fill();
-            }
-
-            ctx.fillStyle = '#fbbf24';
-            ctx.fillRect(cache.x - 5, cache.y - 5, 10, 10);
-            ctx.strokeStyle = '#78350f';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(cache.x - 5, cache.y - 5, 10, 10);
-          }
+          ctx.fillStyle = '#2d6a4f';
+          ctx.beginPath();
+          ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
+          ctx.fill();
         }
       });
 
-      // Player Trail & Character
-      if (highGfx) {
-        player.trail.forEach(pt => {
-          if (pt.alpha > 0) {
-            ctx.fillStyle = `rgba(56, 189, 248, ${pt.alpha * 0.35})`;
-            ctx.beginPath();
-            ctx.arc(pt.x, pt.y, player.radius * 0.5, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        });
+      // 3. Render Waypoint Target Marker
+      const activeCache = caches[state.activeWaypointIndex];
+      ctx.strokeStyle = activeCache.found ? '#4CAF50' : '#ff9800';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.arc(activeCache.x, activeCache.y, 35, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
 
-        const pShadowX = player.x + 10 * sunAngle.x;
-        const pShadowY = player.y + 10 * sunAngle.y;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+      // 4. Render Player
+      if (state.highGraphics) {
+        // Player shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
         ctx.beginPath();
-        ctx.ellipse(pShadowX, pShadowY, player.radius, player.radius * 0.5, 0.3, 0, Math.PI * 2);
-        ctx.fill();
-
-        const pGradient = ctx.createRadialGradient(player.x, player.y, 3, player.x, player.y, 26);
-        pGradient.addColorStop(0, 'rgba(56, 189, 248, 0.45)');
-        pGradient.addColorStop(1, 'rgba(56, 189, 248, 0)');
-        ctx.fillStyle = pGradient;
-        ctx.beginPath();
-        ctx.arc(player.x, player.y, 26, 0, Math.PI * 2);
+        ctx.ellipse(player.x + 4, player.y + 6, player.radius, player.radius * 0.5, 0, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      const walkBob = player.isMoving ? Math.sin(player.walkCycle) * 1.5 : 0;
-      ctx.fillStyle = '#0ea5e9';
+      // Player Body
+      ctx.fillStyle = '#e74c3c';
       ctx.beginPath();
-      ctx.arc(player.x, player.y + walkBob, player.radius, 0, Math.PI * 2);
+      ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
       ctx.fill();
+
+      // Direction Indicator Line
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(player.x, player.y);
+      ctx.lineTo(player.x + Math.cos(player.angle) * (player.radius + 8), player.y + Math.sin(player.angle) * (player.radius + 8));
       ctx.stroke();
 
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(player.x, player.y + walkBob, 3, 0, Math.PI * 2);
-      ctx.fill();
+      // GPS Compass Line to active cache (if active)
+      if (state.gpsActive) {
+        ctx.strokeStyle = 'rgba(76, 175, 80, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y);
+        ctx.lineTo(activeCache.x, activeCache.y);
+        ctx.stroke();
+      }
 
-      if (highGfx) {
-        birds.forEach(bird => {
-          const shadowX = bird.x + bird.altitude * sunAngle.x * 1.5;
-          const shadowY = bird.y + bird.altitude * sunAngle.y * 1.5;
-          const wingOffset = Math.sin(bird.wingPhase) * 6 * bird.scale;
-
-          ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
-          ctx.lineWidth = 2 * bird.scale;
+      // 5. High Graphics Ambient Extras (Birds & Pollen)
+      if (state.highGraphics) {
+        // Birds flying
+        ctx.fillStyle = '#111';
+        birds.forEach(b => {
+          const wingOffset = Math.sin(b.wingCycle) * 5;
           ctx.beginPath();
-          ctx.moveTo(shadowX - 8 * bird.scale, shadowY + wingOffset * 0.5);
-          ctx.lineTo(shadowX, shadowY);
-          ctx.lineTo(shadowX + 8 * bird.scale, shadowY + wingOffset * 0.5);
-          ctx.stroke();
-
-          ctx.strokeStyle = '#0f172a';
-          ctx.lineWidth = 2.5 * bird.scale;
-          ctx.beginPath();
-          ctx.moveTo(bird.x - 10 * bird.scale, bird.y - wingOffset);
-          ctx.lineTo(bird.x, bird.y);
-          ctx.lineTo(bird.x + 10 * bird.scale, bird.y - wingOffset);
-          ctx.stroke();
+          ctx.moveTo(b.x, b.y);
+          ctx.lineTo(b.x - 8, b.y - wingOffset);
+          ctx.lineTo(b.x - 8, b.y + wingOffset);
+          ctx.fill();
         });
 
-        particles.forEach(p => {
-          ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha || 0.3})`;
+        // Floating Atmospheric Pollen
+        ctx.fillStyle = 'rgba(255, 255, 200, 0.5)';
+        pollenParticles.forEach(p => {
           ctx.beginPath();
           ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
           ctx.fill();
         });
       }
+
+      ctx.restore();
     }
 
-    // --- INTERACTION & LOGBOOK ---
-    function interactCache() {
-      if (!currentNearbyCache) return;
-
-      document.getElementById('cache-title').innerText = currentNearbyCache.name;
-      document.getElementById('cache-coords').innerText = `Coordinates: ${currentNearbyCache.coords}`;
-      document.getElementById('cache-desc').innerText = currentNearbyCache.desc;
-      document.getElementById('log-note').value = "";
-
-      openModal('cache-modal');
+    function loop() {
+      update();
+      render();
+      requestAnimationFrame(loop);
     }
 
-    function claimCache() {
-      if (!currentNearbyCache) return;
-
-      currentNearbyCache.found = true;
-      score += 100;
-      foundCount++;
-
-      if (selectedWaypointId === currentNearbyCache.id) {
-        selectedWaypointId = null;
-      }
-
-      document.getElementById('score-val').innerText = score;
-      document.getElementById('found-val').innerText = foundCount;
-
-      const note = document.getElementById('log-note').value.trim() || "Signed logbook!";
-      addLogEntry(currentNearbyCache.name, note);
-
-      closeModal('cache-modal');
-      currentNearbyCache = null;
-    }
-
-    function addLogEntry(name, note) {
-      const logList = document.getElementById('log-list');
-      const emptyMsg = document.getElementById('empty-log-msg');
-      if (emptyMsg) emptyMsg.remove();
-
-      const entry = document.createElement('div');
-      entry.className = "bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1 animate-in fade-in max-w-full overflow-hidden";
-      entry.innerHTML = `
-        <div class="flex justify-between items-center font-semibold text-slate-200 gap-2">
-          <span class="text-amber-400 flex items-center gap-1 min-w-0 truncate">
-            <i class="ph-fill ph-check-circle text-emerald-400 shrink-0"></i> 
-            <span class="truncate">${name}</span>
-          </span>
-          <span class="text-[10px] text-slate-500 shrink-0">+100pts</span>
-        </div>
-        <p class="text-slate-400 text-[11px] italic break-words overflow-wrap-break-word">"${note}"</p>
-      `;
-
-      logList.prepend(entry);
-      document.getElementById('log-count').innerText = `${foundCount} Items`;
-    }
-
-    // --- GRAPHICS TOGGLE MODE ---
-    function toggleGraphicsMode() {
-      highGfx = !highGfx;
-      const label = document.getElementById('gfx-label');
-      const icon = document.getElementById('gfx-icon');
-
-      if (highGfx) {
-        label.innerText = "Graphics: High";
-        icon.className = "ph-bold ph-lightning text-yellow-400";
-      } else {
-        label.innerText = "Graphics: Low (Fast)";
-        icon.className = "ph-bold ph-gauge text-slate-400";
-        player.trail = [];
-      }
-    }
-
-    // --- MODAL UTILITIES ---
-    function openModal(id) {
-      document.getElementById(id).classList.remove('hidden');
-    }
-
-    function closeModal(id) {
-      document.getElementById(id).classList.add('hidden');
-    }
-
-    window.onload = init;
+    loop();
   </script>
 </body>
 </html>
